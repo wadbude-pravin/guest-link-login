@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   User,
   Phone,
@@ -14,8 +14,6 @@ import {
   X,
 } from 'lucide-react';
 import ModalShell from './ModalShell.jsx';
-
-
 
 const ID_PROOF_TYPES = [
   { label: 'Aadhar', value: 'AADHAR' },
@@ -54,21 +52,21 @@ const initialState = {
   idProofType: '',
   paymentType: 'partial',
   paidAmount: '',
-  paymentMethod: 'CASH',
+  paymentMethod: 'cash',
 };
 
 const SectionTitle = ({ title }) => (
   <div className="mb-4 flex items-center gap-3">
-    <span className="text-xs font-bold tracking-[0.15em] text-bronze">{title}</span>
-    <span className="h-px flex-1 bg-bronze/15" />
+    <span className="text-xs font-bold tracking-[0.15em] text-[#A67B5B] uppercase">{title}</span>
+    <span className="h-px flex-1 bg-[#A67B5B]/15" />
   </div>
 );
 
 const Field = ({ label, icon: Icon, error, children }) => (
   <div className="flex flex-col gap-1.5">
-    <label className="text-xs font-semibold uppercase tracking-wide text-textMuted">{label}</label>
-    <div className="flex items-center gap-2 rounded-xl border border-bronze/20 px-3.5 py-1 transition focus-within:border-bronze focus-within:ring-2 focus-within:ring-bronze/20">
-      <Icon size={17} className="shrink-0 text-bronze/60" />
+    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</label>
+    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1 transition focus-within:border-[#A67B5B] focus-within:ring-2 focus-within:ring-[#A67B5B]/20">
+      <Icon size={17} className="shrink-0 text-gray-400" />
       {children}
     </div>
     {error && <p className="text-xs text-red-600">{error}</p>}
@@ -77,17 +75,17 @@ const Field = ({ label, icon: Icon, error, children }) => (
 
 const ReadOnlyField = ({ label, icon: Icon, value }) => (
   <div className="flex flex-col gap-1.5">
-    <label className="text-xs font-semibold uppercase tracking-wide text-textMuted">{label}</label>
-    <div className="flex items-center gap-2 rounded-xl border border-bronze/20 bg-bronze/5 px-3.5 py-2.5">
-      <Icon size={17} className="shrink-0 text-bronze/60" />
-      <span className="text-sm text-textDark">{value}</span>
+    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</label>
+    <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5">
+      <Icon size={17} className="shrink-0 text-gray-400" />
+      <span className="text-sm text-gray-800">{value}</span>
     </div>
   </div>
 );
 
-const inputClass = 'w-full bg-transparent py-2.5 text-sm text-textDark outline-none placeholder:text-gray-400';
+const inputClass = 'w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400';
 
-const ReservationForm = ({ onClose, onBookingCreated, token }) => {
+const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
   const [form, setForm] = useState(initialState);
   const [errors, setErrors] = useState({});
   const [roomTypes, setRoomTypes] = useState([]);
@@ -96,29 +94,66 @@ const ReservationForm = ({ onClose, onBookingCreated, token }) => {
   const [bookingResult, setBookingResult] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Only set when the manager pinned these at link-creation time — the
-  // guest cannot change them, per submitReservationViaLinkSchema.
   const [pinned, setPinned] = useState({ roomType: false, dates: false, guestName: false });
   const [property, setProperty] = useState(null);
   const [linkState, setLinkState] = useState('loading'); // loading | ready | error
   const [linkError, setLinkError] = useState('');
+  const [isLoadingRooms, setIsLoadingRooms] = useState(false);
 
   useEffect(() => {
-    
-
     let cancelled = false;
-    (async () => {
+
+    const fetchDetails = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/reservation-links/${token}`, {
+        // Extract token from URL if propToken is missing
+        let currentToken = propToken;
+        if (!currentToken) {
+          const pathParts = window.location.pathname.split('/');
+          const tokenIndex = pathParts.indexOf('reservation-links') + 1;
+          if (tokenIndex > 0 && tokenIndex < pathParts.length) {
+            currentToken = pathParts[tokenIndex];
+          }
+        }
+
+        if (!currentToken) {
+          throw new Error("Invalid or missing reservation token.");
+        }
+
+        setLinkState('loading');
+        setIsLoadingRooms(true);
+
+        // Step 1: Fetch Reservation Link Details
+        const res = await fetch(`${API_BASE_URL}/reservation-links/${currentToken}`, {
           headers: { 'ngrok-skip-browser-warning': 'true' },
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || data.message || 'This reservation link is no longer valid');
         if (cancelled) return;
 
-        const { reservationLink, property: prop, roomTypes: types } = data;
+        const { reservationLink, property: prop } = data;
         setProperty(prop ?? null);
-        setRoomTypes(types ?? []);
+
+        const propertyId = reservationLink?.propertyId || prop?.id;
+        let fetchedRoomTypes = data.roomTypes || [];
+
+        // Step 2: Fallback to fetch room types separately if they aren't included
+        if (propertyId && fetchedRoomTypes.length === 0) {
+          try {
+            const rtRes = await fetch(`${API_BASE_URL}/properties/${propertyId}/room-types`, {
+              headers: { 'ngrok-skip-browser-warning': 'true' },
+            });
+            if (rtRes.ok) {
+              const rtData = await rtRes.json();
+              fetchedRoomTypes = Array.isArray(rtData) ? rtData : (rtData.roomTypes || []);
+            }
+          } catch (e) {
+            console.error("Failed to fetch room types separately", e);
+          }
+        }
+        
+        if (cancelled) return;
+        setRoomTypes(fetchedRoomTypes);
+        setIsLoadingRooms(false);
 
         const pinnedRoomType = Boolean(reservationLink?.roomTypeId);
         const pinnedDates = Boolean(reservationLink?.checkInDate && reservationLink?.checkOutDate);
@@ -126,12 +161,14 @@ const ReservationForm = ({ onClose, onBookingCreated, token }) => {
         setPinned({ roomType: pinnedRoomType, dates: pinnedDates, guestName: pinnedGuestName });
 
         const matchedRoom = pinnedRoomType
-          ? (types ?? []).find((rt) => rt.id === reservationLink.roomTypeId)
+          ? fetchedRoomTypes.find((rt) => rt.id === reservationLink.roomTypeId)
           : null;
 
         setForm((prev) => ({
           ...prev,
-          guestName: pinnedGuestName ? reservationLink.guestName : prev.guestName,
+          guestName: reservationLink?.guestName || prev.guestName,
+          email: reservationLink?.guestEmail || prev.email,
+          phone: reservationLink?.guestPhone || prev.phone,
           roomTypeId: pinnedRoomType ? reservationLink.roomTypeId : prev.roomTypeId,
           roomPrice: matchedRoom?.basePrice ?? prev.roomPrice,
           checkIn: pinnedDates ? toDateInputValue(reservationLink.checkInDate) : prev.checkIn,
@@ -141,16 +178,19 @@ const ReservationForm = ({ onClose, onBookingCreated, token }) => {
         setLinkState('ready');
       } catch (err) {
         if (!cancelled) {
-          setLinkError(err.message || 'This reservation link is no longer valid');
+          setLinkError(err.message || 'Unable to load reservation link details.');
           setLinkState('error');
+          setIsLoadingRooms(false);
         }
       }
-    })();
+    };
+
+    fetchDetails();
 
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [propToken]);
 
   const selectedRoom = useMemo(
     () => roomTypes.find((r) => r.id === form.roomTypeId),
@@ -215,7 +255,6 @@ const ReservationForm = ({ onClose, onBookingCreated, token }) => {
 
     if (!pinned.roomType) {
       if (!form.roomTypeId) newErrors.roomTypeId = 'Room selection is required';
-      
     }
 
     if (!pinned.dates) {
@@ -233,8 +272,6 @@ const ReservationForm = ({ onClose, onBookingCreated, token }) => {
       newErrors.guests = `Max occupancy for this room type is ${selectedRoom.maxOccupancy}`;
     }
 
-    if (!selectedImage) newErrors.image = 'Guest ID image is required';
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -245,25 +282,32 @@ const ReservationForm = ({ onClose, onBookingCreated, token }) => {
     setStatus('submitting');
 
     try {
-      let res;
+      // Extract token again just to be safe during submission
+      let currentToken = propToken;
+      if (!currentToken) {
+        const pathParts = window.location.pathname.split('/');
+        const tokenIndex = pathParts.indexOf('reservation-links') + 1;
+        if (tokenIndex > 0 && tokenIndex < pathParts.length) {
+          currentToken = pathParts[tokenIndex];
+        }
+      }
 
       const formData = new FormData();
-        formData.append('guestName', form.guestName);
-        formData.append('guestPhone', form.phone);
-        formData.append('email', form.email);
-        formData.append('numberOfGuests', form.guests);
-        if (form.roomTypeId) formData.append('roomTypeId', form.roomTypeId);
-        if (form.checkIn) formData.append('checkInDate', new Date(form.checkIn).toISOString());
-        if (form.checkOut) formData.append('checkOutDate', new Date(form.checkOut).toISOString());
-        if (form.idProofType) formData.append('idProofType', form.idProofType);
-        if (selectedImage?.file) formData.append('idProof', selectedImage.file);
+      formData.append('guestName', form.guestName);
+      formData.append('guestPhone', form.phone);
+      formData.append('email', form.email);
+      formData.append('numberOfGuests', form.guests);
+      if (form.roomTypeId) formData.append('roomTypeId', form.roomTypeId);
+      if (form.checkIn) formData.append('checkInDate', new Date(form.checkIn).toISOString());
+      if (form.checkOut) formData.append('checkOutDate', new Date(form.checkOut).toISOString());
+      if (form.idProofType) formData.append('idProofType', form.idProofType);
+      if (selectedImage?.file) formData.append('idProof', selectedImage.file);
 
-        res = await fetch(`${API_BASE_URL}/reservation-links/${token}/reservation`, {
-          method: 'POST',
-          headers: { 'ngrok-skip-browser-warning': 'true' },
-          body: formData,
-        });
-      
+      const res = await fetch(`${API_BASE_URL}/reservation-links/${currentToken}/reservation`, {
+        method: 'POST',
+        headers: { 'ngrok-skip-browser-warning': 'true' },
+        body: formData,
+      });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
@@ -271,9 +315,7 @@ const ReservationForm = ({ onClose, onBookingCreated, token }) => {
       }
 
       const data = await res.json();
-        setBookingResult(data);
-      
-
+      setBookingResult(data);
       setStatus('success');
       onBookingCreated?.({ ...form, roomName: selectedRoom?.name });
     } catch (err) {
@@ -286,8 +328,8 @@ const ReservationForm = ({ onClose, onBookingCreated, token }) => {
     return (
       <ModalShell onClose={onClose} maxWidth="max-w-2xl">
         <div className="flex flex-col items-center gap-3 p-10 text-center">
-          <Loader2 className="animate-spin text-bronze" size={32} />
-          <p className="text-sm text-textMuted">Loading your reservation link…</p>
+          <Loader2 className="animate-spin text-[#A67B5B]" size={32} />
+          <p className="text-sm text-gray-500">Loading your reservation link…</p>
         </div>
       </ModalShell>
     );
@@ -297,8 +339,8 @@ const ReservationForm = ({ onClose, onBookingCreated, token }) => {
     return (
       <ModalShell onClose={onClose} maxWidth="max-w-2xl">
         <div className="flex flex-col items-center gap-3 p-10 text-center">
-          <p className="font-serif text-lg font-bold text-textDark">This link isn't available</p>
-          <p className="text-sm text-textMuted">{linkError}</p>
+          <p className="font-serif text-lg font-bold text-gray-900">This link isn't available</p>
+          <p className="text-sm text-gray-500">{linkError}</p>
         </div>
       </ModalShell>
     );
@@ -312,68 +354,22 @@ const ReservationForm = ({ onClose, onBookingCreated, token }) => {
     <ModalShell onClose={onClose} maxWidth="max-w-2xl">
       <div className="p-6 sm:p-8">
         <div className="mb-6 border-b border-gray-100 pb-4">
-          <h2 className="font-serif text-xl font-bold text-textDark">New Reservation</h2>
-          <p className="mt-1 text-sm text-textMuted">
-            {property ? `Complete your booking details for ${property.name}.` : 'Complete your booking details below.'}
+          <h2 className="font-serif text-2xl font-bold text-gray-900">New Reservation</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            {property ? `Complete your booking details for ${property.name}.` : 'Manually enter guest details and room preferences to complete the booking.'}
           </p>
         </div>
 
         {status === 'success' ? (
           <div className="flex flex-col items-center gap-4 py-8 text-center">
             <CheckCircle2 className="text-green-500 mb-2" size={56} />
-            <h2 className="font-serif text-2xl font-bold text-textDark">🎉 Reservation Confirmed!</h2>
-            <p className="text-sm text-textMuted max-w-md">
-              Welcome {bookingResult?.guest?.name ?? form.guestName}! Thank you for completing your booking
-              details. We look forward to hosting you!
+            <h2 className="font-serif text-2xl font-bold text-gray-900">🎉 Reservation Confirmed!</h2>
+            <p className="text-sm text-gray-500 max-w-md">
+              Welcome {bookingResult?.guest?.name ?? form.guestName}! Thank you for completing your booking details.
             </p>
-
-            <div className="w-full max-w-sm mt-4 rounded-xl border border-bronze/20 bg-bronze/5 p-5 text-left shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-xs font-bold tracking-[0.15em] text-bronze uppercase">Booking Summary</span>
-                <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                  Status: Confirmed
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-3 text-sm text-textDark">
-                <div className="flex justify-between">
-                  <span className="text-textMuted">Guest Name:</span>
-                  <span className="font-semibold">{bookingResult?.guest?.name ?? form.guestName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-textMuted">Room Type:</span>
-                  <span className="font-semibold">
-                    {bookingResult?.booking?.roomType?.name ?? displayRoomName ?? '—'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-textMuted">Check-In:</span>
-                  <span className="font-semibold">
-                    {formatDisplayDate(bookingResult?.booking?.checkInDate ?? form.checkIn)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-textMuted">Check-Out:</span>
-                  <span className="font-semibold">
-                    {formatDisplayDate(bookingResult?.booking?.checkOutDate ?? form.checkOut)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {bookingResult?.emailSuggestion && (
-              <p className="mt-2 text-xs text-textMuted">
-                Did you mean <span className="font-semibold">{bookingResult.emailSuggestion}</span>?
-              </p>
-            )}
-
-            <p className="mt-4 text-xs italic text-red-500/80">
-                Note: This booking link has now expired and cannot be reused.
-              </p>
-
             <button
               onClick={onClose}
-              className="mt-4 rounded-full bg-bronze px-8 py-2.5 text-sm font-bold text-white transition hover:bg-bronze-600 shadow-md"
+              className="mt-4 rounded-full bg-[#A67B5B] px-8 py-2.5 text-sm font-bold text-white transition hover:bg-[#8B664B] shadow-md"
             >
               Done
             </button>
@@ -434,16 +430,14 @@ const ReservationForm = ({ onClose, onBookingCreated, token }) => {
                   <Field label="Room Type" icon={BedDouble} error={errors.roomTypeId}>
                     <select className={inputClass} value={form.roomTypeId} onChange={handleRoomChange}>
                       <option value="" disabled>
-                        Select a room type
+                        {isLoadingRooms ? 'Loading room types...' : 'Select a room type'}
                       </option>
+                      {!isLoadingRooms && roomTypes.length === 0 && (
+                        <option value="" disabled>No room types available</option>
+                      )}
                       {roomTypes.map((room) => (
-                        <option
-                          key={room.id}
-                          value={room.id}
-                          
-                        >
-                          {room.name} — ₹{room.price ?? room.basePrice}
-                          
+                        <option key={room.id} value={room.id}>
+                          {room.name} {room.price ? `— ₹${room.price}` : room.basePrice ? `— ₹${room.basePrice}` : ''}
                           {room.maxOccupancy ? ` · up to ${room.maxOccupancy} guests` : ''}
                         </option>
                       ))}
@@ -497,76 +491,87 @@ const ReservationForm = ({ onClose, onBookingCreated, token }) => {
               <SectionTitle title="GUEST ID VERIFICATION" />
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wide text-textMuted">
-                      ID Proof Type (optional)
-                    </label>
-                    <select
-                      className="rounded-xl border border-bronze/20 bg-white px-3.5 py-2.5 text-sm text-textDark outline-none transition focus:border-bronze focus:ring-2 focus:ring-bronze/20"
-                      value={form.idProofType}
-                      onChange={handleChange('idProofType')}
-                    >
-                      <option value="">Select ID type</option>
-                      {ID_PROOF_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    ID Proof Type (optional)
+                  </label>
+                  <select
+                    className="rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm text-gray-800 outline-none transition focus:border-[#A67B5B] focus:ring-2 focus:ring-[#A67B5B]/20"
+                    value={form.idProofType}
+                    onChange={handleChange('idProofType')}
+                  >
+                    <option value="">Select ID type</option>
+                    {ID_PROOF_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
 
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wide text-textMuted">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Upload ID Proof
                   </label>
                   <div className="mt-1.5">
                     {selectedImage ? (
-                      <div className="flex items-center gap-3 rounded-xl border border-bronze/20 p-3">
-                        <img
-                          src={selectedImage.previewUrl}
-                          alt="ID proof preview"
-                          className="h-16 w-16 rounded-lg object-cover"
-                        />
-                        <span className="flex-1 truncate text-sm text-textDark">{selectedImage.file.name}</span>
-                        <button
-                          type="button"
-                          onClick={removeImage}
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
-                        >
-                          <X size={16} />
-                        </button>
+                      <div className="flex items-center gap-3 rounded-xl border border-gray-200 p-3">
+                        <img src={selectedImage.previewUrl} alt="ID preview" className="h-16 w-16 rounded-lg object-cover" />
+                        <span className="flex-1 truncate text-sm text-gray-800">{selectedImage.file.name}</span>
+                        <button type="button" onClick={removeImage} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
                       </div>
                     ) : (
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-bronze/25 py-6 text-sm text-bronze transition hover:border-bronze/50 hover:bg-bronze/5"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#A67B5B]/30 py-6 text-sm text-[#A67B5B] transition hover:border-[#A67B5B]/60 hover:bg-[#A67B5B]/5"
                       >
                         <IdCard size={18} />
                         <Upload size={16} />
                         Tap to upload guest ID
                       </button>
                     )}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleImagePick}
-                    />
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImagePick} />
                     {errors.image && <p className="mt-1 text-xs text-red-600">{errors.image}</p>}
                   </div>
                 </div>
               </div>
             </div>
 
-            
+            {/* PAYMENT DETAILS */}
+            <div>
+              <SectionTitle title="PAYMENT DETAILS" />
+              <div className="flex flex-col gap-4">
+                <div className="flex rounded-xl bg-white p-1 shadow-sm ring-1 ring-gray-200">
+                  <button type="button" onClick={() => handleChange('paymentType')({target: {value: 'partial'}})} className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${form.paymentType === 'partial' ? 'bg-[#8B664B] text-white shadow' : 'text-gray-500 hover:text-gray-900'}`}>
+                    Partial Payment
+                  </button>
+                  <button type="button" onClick={() => handleChange('paymentType')({target: {value: 'full'}})} className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${form.paymentType === 'full' ? 'bg-[#8B664B] text-white shadow' : 'text-gray-500 hover:text-gray-900'}`}>
+                    Full Payment
+                  </button>
+                </div>
 
-            {form.roomPrice > 0 && (
-              <div className="rounded-xl border border-bronze/20 bg-bronze/5 p-4 text-sm text-textDark">
-                Room price: <span className="font-semibold">₹{form.roomPrice}</span>/night. Payment is settled with
-                the property at check-in.
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Room Price" icon={Wallet}>
+                    <input type="number" className={inputClass} placeholder="₹0" value={form.roomPrice} disabled />
+                  </Field>
+                  <Field label="Remaining Amount" icon={Wallet}>
+                    <input type="number" className={inputClass} placeholder="₹0" value={remainingAmount} disabled />
+                  </Field>
+                </div>
+
+                <Field label="Amount Paid" icon={Wallet}>
+                  <input type="number" className={inputClass} placeholder="0" value={form.paidAmount} onChange={handleChange('paidAmount')} />
+                </Field>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Payment Method</label>
+                  <select className="rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-800 outline-none transition focus:border-[#A67B5B] focus:ring-2 focus:ring-[#A67B5B]/20" value={form.paymentMethod} onChange={handleChange('paymentMethod')}>
+                    <option value="CASH">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="CARD">Card</option>
+                    <option value="BANK_TRANSFER">Bank Transfer</option>
+                  </select>
+                </div>
               </div>
-            )}
+            </div>
 
             {errors.submit && (
               <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 text-center shadow-sm">
@@ -574,20 +579,15 @@ const ReservationForm = ({ onClose, onBookingCreated, token }) => {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={status === 'submitting'}
-              className="mt-2 flex items-center justify-center gap-2 rounded-full bg-bronze px-6 py-3 text-sm font-bold tracking-wide text-white transition hover:bg-bronze-600 disabled:opacity-60"
-            >
-              {status === 'submitting' ? (
-                <>
-                  <Loader2 className="animate-spin" size={18} />
-                  Creating...
-                </>
-              ) : (
-                'Create Reservation'
-              )}
-            </button>
+            <div className="mt-4 pb-2">
+              <button
+                type="submit"
+                disabled={status === 'submitting'}
+                className="w-full flex justify-center items-center gap-2 rounded-full bg-[#A67B5B] px-6 py-3 text-sm font-bold tracking-wide text-white transition hover:bg-[#8B664B] disabled:opacity-60"
+              >
+                {status === 'submitting' ? <><Loader2 className="animate-spin" size={18} /> Creating...</> : 'Create Reservation'}
+              </button>
+            </div>
           </form>
         )}
       </div>
