@@ -23,7 +23,7 @@ const ID_PROOF_TYPES = [
   { label: 'Other', value: 'OTHER' },
 ];
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://poison-showoff-panda.ngrok-free.dev';
+const API_BASE_URL = 'https://poison-showoff-panda.ngrok-free.dev';
 
 const validatePhone = (phone) => /^\d{10}$/.test(phone.replace(/\D/g, ''));
 const validateEmail = (email) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
