@@ -126,7 +126,13 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
         const res = await fetch(`${API_BASE_URL}/reservation-links/${currentToken}`, {
           headers: { 'ngrok-skip-browser-warning': 'true' },
         });
-        const data = await res.json().catch(() => ({}));
+        let data;
+        try {
+          data = await res.json();
+        } catch (e) {
+          throw new Error('API returned an invalid response (possibly HTML or an ngrok warning). Please check your API URL and ngrok bypass headers.');
+        }
+        
         if (!res.ok) throw new Error(data.error || data.message || 'This reservation link is no longer valid');
         if (cancelled) return;
 
