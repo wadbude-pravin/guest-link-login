@@ -1,0 +1,598 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  User,
+  Phone,
+  Mail,
+  BedDouble,
+  CalendarDays,
+  Users,
+  IdCard,
+  Upload,
+  Wallet,
+  CheckCircle2,
+  Loader2,
+  X,
+} from 'lucide-react';
+import ModalShell from './ModalShell.jsx';
+
+
+
+const ID_PROOF_TYPES = [
+  { label: 'Aadhar', value: 'AADHAR' },
+  { label: 'Passport', value: 'PASSPORT' },
+  { label: 'Driving License', value: 'DRIVING_LICENSE' },
+  { label: 'Voter ID', value: 'VOTER_ID' },
+  { label: 'Other', value: 'OTHER' },
+];
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://poison-showoff-panda.ngrok-free.dev';
+
+const validatePhone = (phone) => /^\d{10}$/.test(phone.replace(/\D/g, ''));
+const validateEmail = (email) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
+const validateDate = (dateString) => {
+  if (!dateString) return false;
+  const date = new Date(dateString);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return date >= today && !isNaN(date.getTime());
+};
+const toDateInputValue = (value) => (value ? new Date(value).toISOString().slice(0, 10) : '');
+const formatDisplayDate = (value) =>
+  value
+    ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+    : '';
+
+const initialState = {
+  guestName: '',
+  phone: '',
+  email: '',
+  roomTypeId: '',
+  roomPrice: 0,
+  checkIn: '',
+  checkOut: '',
+  guests: '',
+  idProofType: '',
+  paymentType: 'partial',
+  paidAmount: '',
+  paymentMethod: 'CASH',
+};
+
+const SectionTitle = ({ title }) => (
+  <div className="mb-4 flex items-center gap-3">
+    <span className="text-xs font-bold tracking-[0.15em] text-bronze">{title}</span>
+    <span className="h-px flex-1 bg-bronze/15" />
+  </div>
+);
+
+const Field = ({ label, icon: Icon, error, children }) => (
+  <div className="flex flex-col gap-1.5">
+    <label className="text-xs font-semibold uppercase tracking-wide text-textMuted">{label}</label>
+    <div className="flex items-center gap-2 rounded-xl border border-bronze/20 px-3.5 py-1 transition focus-within:border-bronze focus-within:ring-2 focus-within:ring-bronze/20">
+      <Icon size={17} className="shrink-0 text-bronze/60" />
+      {children}
+    </div>
+    {error && <p className="text-xs text-red-600">{error}</p>}
+  </div>
+);
+
+const ReadOnlyField = ({ label, icon: Icon, value }) => (
+  <div className="flex flex-col gap-1.5">
+    <label className="text-xs font-semibold uppercase tracking-wide text-textMuted">{label}</label>
+    <div className="flex items-center gap-2 rounded-xl border border-bronze/20 bg-bronze/5 px-3.5 py-2.5">
+      <Icon size={17} className="shrink-0 text-bronze/60" />
+      <span className="text-sm text-textDark">{value}</span>
+    </div>
+  </div>
+);
+
+const inputClass = 'w-full bg-transparent py-2.5 text-sm text-textDark outline-none placeholder:text-gray-400';
+
+const ReservationForm = ({ onClose, onBookingCreated, token }) => {
+  const [form, setForm] = useState(initialState);
+  const [errors, setErrors] = useState({});
+  const [roomTypes, setRoomTypes] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [status, setStatus] = useState('idle'); // idle | submitting | success
+  const [bookingResult, setBookingResult] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // Only set when the manager pinned these at link-creation time — the
+  // guest cannot change them, per submitReservationViaLinkSchema.
+  const [pinned, setPinned] = useState({ roomType: false, dates: false, guestName: false });
+  const [property, setProperty] = useState(null);
+  const [linkState, setLinkState] = useState('loading'); // loading | ready | error
+  const [linkError, setLinkError] = useState('');
+
+  useEffect(() => {
+    
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/reservation-links/${token}`, {
+          headers: { 'ngrok-skip-browser-warning': 'true' },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || data.message || 'This reservation link is no longer valid');
+        if (cancelled) return;
+
+        const { reservationLink, property: prop, roomTypes: types } = data;
+        setProperty(prop ?? null);
+        setRoomTypes(types ?? []);
+
+        const pinnedRoomType = Boolean(reservationLink?.roomTypeId);
+        const pinnedDates = Boolean(reservationLink?.checkInDate && reservationLink?.checkOutDate);
+        const pinnedGuestName = Boolean(reservationLink?.guestName);
+        setPinned({ roomType: pinnedRoomType, dates: pinnedDates, guestName: pinnedGuestName });
+
+        const matchedRoom = pinnedRoomType
+          ? (types ?? []).find((rt) => rt.id === reservationLink.roomTypeId)
+          : null;
+
+        setForm((prev) => ({
+          ...prev,
+          guestName: pinnedGuestName ? reservationLink.guestName : prev.guestName,
+          roomTypeId: pinnedRoomType ? reservationLink.roomTypeId : prev.roomTypeId,
+          roomPrice: matchedRoom?.basePrice ?? prev.roomPrice,
+          checkIn: pinnedDates ? toDateInputValue(reservationLink.checkInDate) : prev.checkIn,
+          checkOut: pinnedDates ? toDateInputValue(reservationLink.checkOutDate) : prev.checkOut,
+        }));
+
+        setLinkState('ready');
+      } catch (err) {
+        if (!cancelled) {
+          setLinkError(err.message || 'This reservation link is no longer valid');
+          setLinkState('error');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const selectedRoom = useMemo(
+    () => roomTypes.find((r) => r.id === form.roomTypeId),
+    [roomTypes, form.roomTypeId]
+  );
+
+  const remainingAmount = useMemo(() => {
+    const price = parseFloat(form.roomPrice) || 0;
+    const paid = parseFloat(form.paidAmount) || 0;
+    return Math.max(0, price - paid);
+  }, [form.roomPrice, form.paidAmount]);
+
+  const clearError = (field) =>
+    setErrors((prev) => {
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+
+  const handleChange = (field) => (e) => {
+    const { value } = e.target;
+    setForm((prev) => ({ ...prev, [field]: value }));
+    clearError(field);
+  };
+
+  const handlePhoneChange = (e) => {
+    const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setForm((prev) => ({ ...prev, phone: digitsOnly }));
+    clearError('phone');
+  };
+
+  const handleRoomChange = (e) => {
+    const roomTypeId = e.target.value;
+    const room = roomTypes.find((r) => r.id === roomTypeId);
+    setForm((prev) => ({ ...prev, roomTypeId, roomPrice: room?.price ?? room?.basePrice ?? 0 }));
+    clearError('roomTypeId');
+  };
+
+  const handleImagePick = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSelectedImage({ file, previewUrl: URL.createObjectURL(file) });
+    clearError('image');
+  };
+
+  const removeImage = () => {
+    if (selectedImage?.previewUrl) URL.revokeObjectURL(selectedImage.previewUrl);
+    setSelectedImage(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!pinned.guestName) {
+      if (!form.guestName.trim()) newErrors.guestName = 'Guest name is required';
+    }
+    if (!form.phone) newErrors.phone = 'Phone number is required';
+    else if (!validatePhone(form.phone)) newErrors.phone = 'Phone must be exactly 10 digits';
+    if (!form.email) newErrors.email = 'Email is required';
+    else if (!validateEmail(form.email)) newErrors.email = 'Invalid email format';
+
+    if (!pinned.roomType) {
+      if (!form.roomTypeId) newErrors.roomTypeId = 'Room selection is required';
+      
+    }
+
+    if (!pinned.dates) {
+      if (!form.checkIn) newErrors.checkIn = 'Check-in date is required';
+      else if (!validateDate(form.checkIn)) newErrors.checkIn = 'Check-in date cannot be in the past';
+      if (!form.checkOut) newErrors.checkOut = 'Check-out date is required';
+      else if (!validateDate(form.checkOut)) newErrors.checkOut = 'Check-out date cannot be in the past';
+      else if (form.checkIn && new Date(form.checkOut) <= new Date(form.checkIn))
+        newErrors.checkOut = 'Check-out must be after check-in';
+    }
+
+    if (!form.guests) newErrors.guests = 'Number of guests is required';
+    else if (parseInt(form.guests, 10) < 1) newErrors.guests = 'Must have at least 1 guest';
+    else if (selectedRoom?.maxOccupancy && parseInt(form.guests, 10) > selectedRoom.maxOccupancy) {
+      newErrors.guests = `Max occupancy for this room type is ${selectedRoom.maxOccupancy}`;
+    }
+
+    if (!selectedImage) newErrors.image = 'Guest ID image is required';
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+    setStatus('submitting');
+
+    try {
+      let res;
+
+      const formData = new FormData();
+        formData.append('guestName', form.guestName);
+        formData.append('guestPhone', form.phone);
+        formData.append('email', form.email);
+        formData.append('numberOfGuests', form.guests);
+        if (form.roomTypeId) formData.append('roomTypeId', form.roomTypeId);
+        if (form.checkIn) formData.append('checkInDate', new Date(form.checkIn).toISOString());
+        if (form.checkOut) formData.append('checkOutDate', new Date(form.checkOut).toISOString());
+        if (form.idProofType) formData.append('idProofType', form.idProofType);
+        if (selectedImage?.file) formData.append('idProof', selectedImage.file);
+
+        res = await fetch(`${API_BASE_URL}/reservation-links/${token}/reservation`, {
+          method: 'POST',
+          headers: { 'ngrok-skip-browser-warning': 'true' },
+          body: formData,
+        });
+      
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || 'Failed to submit reservation');
+      }
+
+      const data = await res.json();
+        setBookingResult(data);
+      
+
+      setStatus('success');
+      onBookingCreated?.({ ...form, roomName: selectedRoom?.name });
+    } catch (err) {
+      setStatus('idle');
+      setErrors((prev) => ({ ...prev, submit: err.message }));
+    }
+  };
+
+  if (linkState === 'loading') {
+    return (
+      <ModalShell onClose={onClose} maxWidth="max-w-2xl">
+        <div className="flex flex-col items-center gap-3 p-10 text-center">
+          <Loader2 className="animate-spin text-bronze" size={32} />
+          <p className="text-sm text-textMuted">Loading your reservation link…</p>
+        </div>
+      </ModalShell>
+    );
+  }
+
+  if (linkState === 'error') {
+    return (
+      <ModalShell onClose={onClose} maxWidth="max-w-2xl">
+        <div className="flex flex-col items-center gap-3 p-10 text-center">
+          <p className="font-serif text-lg font-bold text-textDark">This link isn't available</p>
+          <p className="text-sm text-textMuted">{linkError}</p>
+        </div>
+      </ModalShell>
+    );
+  }
+
+  const displayRoomName = pinned.roomType
+    ? roomTypes.find((rt) => rt.id === form.roomTypeId)?.name ?? 'Reserved room type'
+    : selectedRoom?.name;
+
+  return (
+    <ModalShell onClose={onClose} maxWidth="max-w-2xl">
+      <div className="p-6 sm:p-8">
+        <div className="mb-6 border-b border-gray-100 pb-4">
+          <h2 className="font-serif text-xl font-bold text-textDark">New Reservation</h2>
+          <p className="mt-1 text-sm text-textMuted">
+            {property ? `Complete your booking details for ${property.name}.` : 'Complete your booking details below.'}
+          </p>
+        </div>
+
+        {status === 'success' ? (
+          <div className="flex flex-col items-center gap-4 py-8 text-center">
+            <CheckCircle2 className="text-green-500 mb-2" size={56} />
+            <h2 className="font-serif text-2xl font-bold text-textDark">🎉 Reservation Confirmed!</h2>
+            <p className="text-sm text-textMuted max-w-md">
+              Welcome {bookingResult?.guest?.name ?? form.guestName}! Thank you for completing your booking
+              details. We look forward to hosting you!
+            </p>
+
+            <div className="w-full max-w-sm mt-4 rounded-xl border border-bronze/20 bg-bronze/5 p-5 text-left shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold tracking-[0.15em] text-bronze uppercase">Booking Summary</span>
+                <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                  Status: Confirmed
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-3 text-sm text-textDark">
+                <div className="flex justify-between">
+                  <span className="text-textMuted">Guest Name:</span>
+                  <span className="font-semibold">{bookingResult?.guest?.name ?? form.guestName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-textMuted">Room Type:</span>
+                  <span className="font-semibold">
+                    {bookingResult?.booking?.roomType?.name ?? displayRoomName ?? '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-textMuted">Check-In:</span>
+                  <span className="font-semibold">
+                    {formatDisplayDate(bookingResult?.booking?.checkInDate ?? form.checkIn)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-textMuted">Check-Out:</span>
+                  <span className="font-semibold">
+                    {formatDisplayDate(bookingResult?.booking?.checkOutDate ?? form.checkOut)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {bookingResult?.emailSuggestion && (
+              <p className="mt-2 text-xs text-textMuted">
+                Did you mean <span className="font-semibold">{bookingResult.emailSuggestion}</span>?
+              </p>
+            )}
+
+            <p className="mt-4 text-xs italic text-red-500/80">
+                Note: This booking link has now expired and cannot be reused.
+              </p>
+
+            <button
+              onClick={onClose}
+              className="mt-4 rounded-full bg-bronze px-8 py-2.5 text-sm font-bold text-white transition hover:bg-bronze-600 shadow-md"
+            >
+              Done
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex max-h-[65vh] flex-col gap-6 overflow-y-auto pr-1">
+            {/* GUEST INFORMATION */}
+            <div>
+              <SectionTitle title="GUEST INFORMATION" />
+              <div className="flex flex-col gap-4">
+                {pinned.guestName ? (
+                  <ReadOnlyField label="Guest Full Name" icon={User} value={form.guestName} />
+                ) : (
+                  <Field label="Guest Full Name" icon={User} error={errors.guestName}>
+                    <input
+                      className={inputClass}
+                      placeholder="E.g. Alexander Hamilton"
+                      value={form.guestName}
+                      onChange={handleChange('guestName')}
+                    />
+                  </Field>
+                )}
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Phone Number" icon={Phone} error={errors.phone}>
+                    <input
+                      className={inputClass}
+                      placeholder="10-digit number"
+                      inputMode="numeric"
+                      value={form.phone}
+                      onChange={handlePhoneChange}
+                    />
+                  </Field>
+                  <Field label="Email Address" icon={Mail} error={errors.email}>
+                    <input
+                      className={inputClass}
+                      type="email"
+                      placeholder="guest@example.com"
+                      value={form.email}
+                      onChange={handleChange('email')}
+                    />
+                  </Field>
+                </div>
+              </div>
+            </div>
+
+            {/* BOOKING DETAILS */}
+            <div>
+              <SectionTitle title="BOOKING DETAILS" />
+              <div className="flex flex-col gap-4">
+                {pinned.roomType ? (
+                  <ReadOnlyField
+                    label="Room Type"
+                    icon={BedDouble}
+                    value={displayRoomName ?? 'Reserved room type'}
+                  />
+                ) : (
+                  <Field label="Room Type" icon={BedDouble} error={errors.roomTypeId}>
+                    <select className={inputClass} value={form.roomTypeId} onChange={handleRoomChange}>
+                      <option value="" disabled>
+                        Select a room type
+                      </option>
+                      {roomTypes.map((room) => (
+                        <option
+                          key={room.id}
+                          value={room.id}
+                          
+                        >
+                          {room.name} — ₹{room.price ?? room.basePrice}
+                          
+                          {room.maxOccupancy ? ` · up to ${room.maxOccupancy} guests` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                )}
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {pinned.dates ? (
+                    <>
+                      <ReadOnlyField label="Check-In" icon={CalendarDays} value={formatDisplayDate(form.checkIn)} />
+                      <ReadOnlyField label="Check-Out" icon={CalendarDays} value={formatDisplayDate(form.checkOut)} />
+                    </>
+                  ) : (
+                    <>
+                      <Field label="Check-In" icon={CalendarDays} error={errors.checkIn}>
+                        <input
+                          type="date"
+                          className={inputClass}
+                          value={form.checkIn}
+                          onChange={handleChange('checkIn')}
+                        />
+                      </Field>
+                      <Field label="Check-Out" icon={CalendarDays} error={errors.checkOut}>
+                        <input
+                          type="date"
+                          className={inputClass}
+                          value={form.checkOut}
+                          onChange={handleChange('checkOut')}
+                        />
+                      </Field>
+                    </>
+                  )}
+                </div>
+
+                <Field label="Number of Guests" icon={Users} error={errors.guests}>
+                  <input
+                    type="number"
+                    min="1"
+                    className={inputClass}
+                    placeholder="E.g. 2"
+                    value={form.guests}
+                    onChange={handleChange('guests')}
+                  />
+                </Field>
+              </div>
+            </div>
+
+            {/* GUEST ID VERIFICATION */}
+            <div>
+              <SectionTitle title="GUEST ID VERIFICATION" />
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-textMuted">
+                      ID Proof Type (optional)
+                    </label>
+                    <select
+                      className="rounded-xl border border-bronze/20 bg-white px-3.5 py-2.5 text-sm text-textDark outline-none transition focus:border-bronze focus:ring-2 focus:ring-bronze/20"
+                      value={form.idProofType}
+                      onChange={handleChange('idProofType')}
+                    >
+                      <option value="">Select ID type</option>
+                      {ID_PROOF_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-textMuted">
+                    Upload ID Proof
+                  </label>
+                  <div className="mt-1.5">
+                    {selectedImage ? (
+                      <div className="flex items-center gap-3 rounded-xl border border-bronze/20 p-3">
+                        <img
+                          src={selectedImage.previewUrl}
+                          alt="ID proof preview"
+                          className="h-16 w-16 rounded-lg object-cover"
+                        />
+                        <span className="flex-1 truncate text-sm text-textDark">{selectedImage.file.name}</span>
+                        <button
+                          type="button"
+                          onClick={removeImage}
+                          className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-bronze/25 py-6 text-sm text-bronze transition hover:border-bronze/50 hover:bg-bronze/5"
+                      >
+                        <IdCard size={18} />
+                        <Upload size={16} />
+                        Tap to upload guest ID
+                      </button>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImagePick}
+                    />
+                    {errors.image && <p className="mt-1 text-xs text-red-600">{errors.image}</p>}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            
+
+            {form.roomPrice > 0 && (
+              <div className="rounded-xl border border-bronze/20 bg-bronze/5 p-4 text-sm text-textDark">
+                Room price: <span className="font-semibold">₹{form.roomPrice}</span>/night. Payment is settled with
+                the property at check-in.
+              </div>
+            )}
+
+            {errors.submit && (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 text-center shadow-sm">
+                {errors.submit}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={status === 'submitting'}
+              className="mt-2 flex items-center justify-center gap-2 rounded-full bg-bronze px-6 py-3 text-sm font-bold tracking-wide text-white transition hover:bg-bronze-600 disabled:opacity-60"
+            >
+              {status === 'submitting' ? (
+                <>
+                  <Loader2 className="animate-spin" size={18} />
+                  Creating...
+                </>
+              ) : (
+                'Create Reservation'
+              )}
+            </button>
+          </form>
+        )}
+      </div>
+    </ModalShell>
+  );
+};
+
+export default ReservationForm;
