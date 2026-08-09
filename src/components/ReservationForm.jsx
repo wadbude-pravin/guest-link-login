@@ -251,9 +251,7 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
 
   const validateForm = () => {
     const newErrors = {};
-    if (!pinned.guestName) {
-      if (!form.guestName.trim()) newErrors.guestName = 'Guest name is required';
-    }
+    if (!form.guestName.trim()) newErrors.guestName = 'Guest name is required';
     if (!form.phone) newErrors.phone = 'Phone number is required';
     else if (!validatePhone(form.phone)) newErrors.phone = 'Phone must be exactly 10 digits';
     if (!form.email) newErrors.email = 'Email is required';
@@ -386,18 +384,14 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
             <div>
               <SectionTitle title="GUEST INFORMATION" />
               <div className="flex flex-col gap-4">
-                {pinned.guestName ? (
-                  <ReadOnlyField label="Guest Full Name" icon={User} value={form.guestName} />
-                ) : (
-                  <Field label="Guest Full Name" icon={User} error={errors.guestName}>
-                    <input
-                      className={inputClass}
-                      placeholder="E.g. Alexander Hamilton"
-                      value={form.guestName}
-                      onChange={handleChange('guestName')}
-                    />
-                  </Field>
-                )}
+                <Field label="Guest Full Name" icon={User} error={errors.guestName}>
+                  <input
+                    className={inputClass}
+                    placeholder="E.g. Alexander Hamilton"
+                    value={form.guestName}
+                    onChange={handleChange('guestName')}
+                  />
+                </Field>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field label="Phone Number" icon={Phone} error={errors.phone}>
