@@ -23,7 +23,7 @@ const ID_PROOF_TYPES = [
   { label: 'Other', value: 'OTHER' },
 ];
 
-const API_BASE_URL = 'https://poison-showoff-panda.ngrok-free.dev';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const validatePhone = (phone) => /^\d{10}$/.test(phone.replace(/\D/g, ''));
 const validateEmail = (email) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
@@ -132,7 +132,7 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
         } catch (e) {
           throw new Error('API returned an invalid response (possibly HTML or an ngrok warning). Please check your API URL and ngrok bypass headers.');
         }
-        
+
         if (!res.ok) throw new Error(data.error || data.message || 'This reservation link is no longer valid');
         if (cancelled) return;
 
@@ -156,7 +156,7 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
             console.error("Failed to fetch room types separately", e);
           }
         }
-        
+
         if (cancelled) return;
         setRoomTypes(fetchedRoomTypes);
         setIsLoadingRooms(false);
@@ -540,10 +540,10 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
               <SectionTitle title="PAYMENT DETAILS" />
               <div className="flex flex-col gap-4">
                 <div className="flex rounded-xl bg-white p-1 shadow-sm ring-1 ring-gray-200">
-                  <button type="button" onClick={() => handleChange('paymentType')({target: {value: 'partial'}})} className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${form.paymentType === 'partial' ? 'bg-[#8B664B] text-white shadow' : 'text-gray-500 hover:text-gray-900'}`}>
+                  <button type="button" onClick={() => handleChange('paymentType')({ target: { value: 'partial' } })} className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${form.paymentType === 'partial' ? 'bg-[#8B664B] text-white shadow' : 'text-gray-500 hover:text-gray-900'}`}>
                     Partial Payment
                   </button>
-                  <button type="button" onClick={() => handleChange('paymentType')({target: {value: 'full'}})} className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${form.paymentType === 'full' ? 'bg-[#8B664B] text-white shadow' : 'text-gray-500 hover:text-gray-900'}`}>
+                  <button type="button" onClick={() => handleChange('paymentType')({ target: { value: 'full' } })} className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${form.paymentType === 'full' ? 'bg-[#8B664B] text-white shadow' : 'text-gray-500 hover:text-gray-900'}`}>
                     Full Payment
                   </button>
                 </div>

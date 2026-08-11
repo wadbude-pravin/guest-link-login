@@ -21,7 +21,7 @@ const Field = ({ label, icon: Icon, children }) => (
 
 const inputClass = 'w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400';
 
-const API_BASE_URL = 'https://poison-showoff-panda.ngrok-free.dev';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const ReservationLandingPage = () => {
   const [isOpen, setIsOpen] = useState(true);
