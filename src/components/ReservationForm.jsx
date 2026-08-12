@@ -133,14 +133,14 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
         setProperty(prop ?? null);
         setRoomTypes(fetchedRoomTypes || []);
 
-        // 💥 CRITICAL FIX: Populate form state with pre-filled Manager details
+        // 💥 FIX: Populate pre-filled Guest Information correctly
         if (reservationLink) {
           setForm((prev) => ({
             ...prev,
-            guestName: reservationLink.guestName || prev.guestName || '',
-            phone: reservationLink.guestPhone || prev.phone || '',       // guestPhone -> phone
-            email: reservationLink.guestEmail || prev.email || '',       // guestEmail -> email
-            roomTypeId: reservationLink.roomTypeId || prev.roomTypeId || '',
+            guestName: reservationLink.guestName ?? prev.guestName ?? '',
+            phone: reservationLink.guestPhone ?? prev.phone ?? '',
+            email: reservationLink.guestEmail ?? prev.email ?? '',
+            roomTypeId: reservationLink.roomTypeId ?? prev.roomTypeId ?? '',
             checkIn: reservationLink.checkInDate
               ? new Date(reservationLink.checkInDate).toISOString().slice(0, 10)
               : prev.checkIn,
@@ -148,6 +148,13 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
               ? new Date(reservationLink.checkOutDate).toISOString().slice(0, 10)
               : prev.checkOut,
           }));
+
+          // Set pinned values if manager locked room type or dates
+          setPinned({
+            roomType: Boolean(reservationLink.roomTypeId),
+            dates: Boolean(reservationLink.checkInDate && reservationLink.checkOutDate),
+            guestName: Boolean(reservationLink.guestName),
+          });
         }
 
         setLinkState('success');
