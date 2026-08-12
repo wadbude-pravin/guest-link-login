@@ -137,10 +137,10 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
         if (reservationLink) {
           setForm((prev) => ({
             ...prev,
-            guestName: reservationLink.guestName ?? prev.guestName ?? '',
-            phone: reservationLink.guestPhone ?? prev.phone ?? '',
-            email: reservationLink.guestEmail ?? prev.email ?? '',
-            roomTypeId: reservationLink.roomTypeId ?? prev.roomTypeId ?? '',
+            guestName: reservationLink.guestName || prev.guestName || '',
+            phone: reservationLink.guestPhone || prev.phone || '',
+            email: reservationLink.guestEmail || prev.email || '',
+            roomTypeId: reservationLink.roomTypeId || prev.roomTypeId || '',
             checkIn: reservationLink.checkInDate
               ? new Date(reservationLink.checkInDate).toISOString().slice(0, 10)
               : prev.checkIn,
@@ -153,7 +153,7 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
           setPinned({
             roomType: Boolean(reservationLink.roomTypeId),
             dates: Boolean(reservationLink.checkInDate && reservationLink.checkOutDate),
-            guestName: Boolean(reservationLink.guestName),
+            guestName: Boolean(reservationLink.guestName?.trim()),
           });
         }
 

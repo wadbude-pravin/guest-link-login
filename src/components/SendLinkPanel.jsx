@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { MailPlus, Loader2, CheckCircle2 } from 'lucide-react';
 import ModalShell from './ModalShell.jsx';
 
-const initialState = { guestEmail: '', guestPhone: '' };
+const initialState = { guestName: '', guestEmail: '', guestPhone: '' };
 
 const SendLinkPanel = ({ onClose, onLinkSent }) => {
   const [form, setForm] = useState(initialState);
@@ -65,6 +65,20 @@ const SendLinkPanel = ({ onClose, onLinkSent }) => {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="guestName" className="text-xs font-semibold uppercase tracking-wide text-textMuted">
+                Guest Name
+              </label>
+              <input
+                id="guestName"
+                type="text"
+                placeholder="E.g. Alexander Hamilton"
+                value={form.guestName}
+                onChange={handleChange('guestName')}
+                className="rounded-xl border border-bronze/20 px-4 py-3 text-sm text-textDark outline-none transition focus:border-bronze focus:ring-2 focus:ring-bronze/20"
+              />
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <label htmlFor="guestEmail" className="text-xs font-semibold uppercase tracking-wide text-textMuted">
                 Guest Email
