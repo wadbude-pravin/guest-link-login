@@ -100,12 +100,13 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
   const [linkError, setLinkError] = useState('');
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
 
+  // ReservationForm.jsx ke andar:
+
   useEffect(() => {
     let cancelled = false;
 
     const fetchDetails = async () => {
       try {
-        // Extract token from URL if propToken is missing
         let currentToken = propToken;
         if (!currentToken) {
           const pathParts = window.location.pathname.split('/');
@@ -115,78 +116,45 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
           }
         }
 
-        if (!currentToken) {
-          throw new Error("Invalid or missing reservation token.");
-        }
+        if (!currentToken) throw new Error("Invalid or missing reservation token.");
 
         setLinkState('loading');
-        setIsLoadingRooms(true);
 
-        // Step 1: Fetch Reservation Link Details
         const res = await fetch(`${API_BASE_URL}/reservation-links/${currentToken}`, {
           headers: { 'ngrok-skip-browser-warning': 'true' },
         });
-        let data;
-        try {
-          data = await res.json();
-        } catch (e) {
-          throw new Error('API returned an invalid response (possibly HTML or an ngrok warning). Please check your API URL and ngrok bypass headers.');
-        }
 
-        if (!res.ok) throw new Error(data.error || data.message || 'This reservation link is no longer valid');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'This reservation link is no longer valid');
         if (cancelled) return;
 
-        const { reservationLink, property: prop } = data;
+        const { reservationLink, property: prop, roomTypes: fetchedRoomTypes } = data;
+
         setProperty(prop ?? null);
+        setRoomTypes(fetchedRoomTypes || []);
 
-        const propertyId = reservationLink?.propertyId || prop?.id;
-        let fetchedRoomTypes = data.roomTypes || [];
-
-        // Step 2: Fallback to fetch room types separately if they aren't included
-        if (propertyId && fetchedRoomTypes.length === 0) {
-          try {
-            const rtRes = await fetch(`${API_BASE_URL}/properties/${propertyId}/room-types`, {
-              headers: { 'ngrok-skip-browser-warning': 'true' },
-            });
-            if (rtRes.ok) {
-              const rtData = await rtRes.json();
-              fetchedRoomTypes = Array.isArray(rtData) ? rtData : (rtData.roomTypes || []);
-            }
-          } catch (e) {
-            console.error("Failed to fetch room types separately", e);
-          }
+        // 💥 CRITICAL FIX: Populate form state with pre-filled Manager details
+        if (reservationLink) {
+          setForm((prev) => ({
+            ...prev,
+            guestName: reservationLink.guestName || prev.guestName || '',
+            phone: reservationLink.guestPhone || prev.phone || '',       // guestPhone -> phone
+            email: reservationLink.guestEmail || prev.email || '',       // guestEmail -> email
+            roomTypeId: reservationLink.roomTypeId || prev.roomTypeId || '',
+            checkIn: reservationLink.checkInDate
+              ? new Date(reservationLink.checkInDate).toISOString().slice(0, 10)
+              : prev.checkIn,
+            checkOut: reservationLink.checkOutDate
+              ? new Date(reservationLink.checkOutDate).toISOString().slice(0, 10)
+              : prev.checkOut,
+          }));
         }
 
-        if (cancelled) return;
-        setRoomTypes(fetchedRoomTypes);
-        setIsLoadingRooms(false);
-
-        const pinnedRoomType = Boolean(reservationLink?.roomTypeId);
-        const pinnedDates = Boolean(reservationLink?.checkInDate && reservationLink?.checkOutDate);
-        const pinnedGuestName = Boolean(reservationLink?.guestName);
-        setPinned({ roomType: pinnedRoomType, dates: pinnedDates, guestName: pinnedGuestName });
-
-        const matchedRoom = pinnedRoomType
-          ? fetchedRoomTypes.find((rt) => rt.id === reservationLink.roomTypeId)
-          : null;
-
-        setForm((prev) => ({
-          ...prev,
-          guestName: reservationLink?.guestName || prev.guestName,
-          email: reservationLink?.guestEmail || prev.email,
-          phone: reservationLink?.guestPhone || prev.phone,
-          roomTypeId: pinnedRoomType ? reservationLink.roomTypeId : prev.roomTypeId,
-          roomPrice: matchedRoom?.basePrice ?? prev.roomPrice,
-          checkIn: pinnedDates ? toDateInputValue(reservationLink.checkInDate) : prev.checkIn,
-          checkOut: pinnedDates ? toDateInputValue(reservationLink.checkOutDate) : prev.checkOut,
-        }));
-
-        setLinkState('ready');
+        setLinkState('success');
       } catch (err) {
         if (!cancelled) {
-          setLinkError(err.message || 'Unable to load reservation link details.');
           setLinkState('error');
-          setIsLoadingRooms(false);
+          setLinkError(err.message);
         }
       }
     };
@@ -197,7 +165,6 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
       cancelled = true;
     };
   }, [propToken]);
-
   const selectedRoom = useMemo(
     () => roomTypes.find((r) => r.id === form.roomTypeId),
     [roomTypes, form.roomTypeId]
