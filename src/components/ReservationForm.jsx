@@ -129,6 +129,7 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
         if (cancelled) return;
 
         const { reservationLink, property: prop, roomTypes: fetchedRoomTypes } = data;
+        console.log("FETCHED RESERVATION LINK DATA:", reservationLink);
 
         setProperty(prop ?? null);
         setRoomTypes(fetchedRoomTypes || []);
@@ -160,6 +161,7 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
         setLinkState('success');
       } catch (err) {
         if (!cancelled) {
+          console.error("Link fetch error:", err);
           setLinkState('error');
           setLinkError(err.message);
         }
