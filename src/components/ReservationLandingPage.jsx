@@ -29,10 +29,10 @@ const ReservationLandingPage = () => {
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
   const [property, setProperty] = useState(null);
 
-  // 💡 FIX 1: States for Auto-filling Guest Details
+  // 💡 GUEST FORM STATES (Matched Exactly with API Keys)
   const [guestName, setGuestName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
 
   useEffect(() => {
     const pathParts = window.location.pathname.split('/');
@@ -49,19 +49,19 @@ const ReservationLandingPage = () => {
       })
         .then((res) => res.json())
         .then((data) => {
-          console.log("🔍 API RESPONSE FROM BACKEND:", data); // Check backend response
+          console.log("🔍 FETCHED RESERVATION DATA:", data);
 
-          // Handle room types & property
           if (data.roomTypes) setRoomTypes(data.roomTypes);
           if (data.property) setProperty(data.property);
 
-          // 💡 FIX 2: Pre-fill Guest Details from Backend Response
-          const linkData = data.reservationLink || data.link || data;
+          // 💡 Extract reservationLink object
+          const resLink = data.reservationLink || data.link || data;
 
-          if (linkData) {
-            setGuestName(linkData.guestName || '');
-            setPhone(linkData.guestPhone || '');
-            setEmail(linkData.guestEmail || '');
+          if (resLink) {
+            // Force state update with exact backend field names
+            setGuestName(resLink.guestName || '');
+            setGuestPhone(resLink.guestPhone || resLink.phone || '');
+            setGuestEmail(resLink.guestEmail || resLink.email || '');
           }
         })
         .catch(err => console.error("Failed to fetch reservation link details", err))
@@ -93,46 +93,45 @@ const ReservationLandingPage = () => {
             </p>
           </div>
 
-          <form className="flex max-h-[65vh] flex-col gap-6 overflow-y-auto pr-1">
+          <form className="flex max-h-[65vh] flex-col gap-6 overflow-y-auto pr-1" onSubmit={(e) => e.preventDefault()}>
             {/* GUEST INFORMATION */}
-            {/* GUEST INFORMATION SECTION */}
             <div>
               <SectionTitle title="GUEST INFORMATION" />
               <div className="flex flex-col gap-4">
-
-                {/* Full Name */}
+                {/* Guest Name */}
                 <Field label="Guest Full Name" icon={User}>
                   <input
+                    type="text"
                     className={inputClass}
                     placeholder="E.g. Alexander Hamilton"
                     value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)} // 👈 Makes it editable
+                    onChange={(e) => setGuestName(e.target.value)}
                   />
                 </Field>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {/* Phone Number */}
+                  {/* Guest Phone */}
                   <Field label="Phone Number" icon={Phone}>
                     <input
+                      type="text"
                       className={inputClass}
                       placeholder="10-digit number"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)} // 👈 Auto-fills '9981578020' & makes it editable
+                      value={guestPhone}
+                      onChange={(e) => setGuestPhone(e.target.value)}
                     />
                   </Field>
 
-                  {/* Email Address */}
+                  {/* Guest Email */}
                   <Field label="Email Address" icon={Mail}>
                     <input
-                      className={inputClass}
                       type="email"
+                      className={inputClass}
                       placeholder="guest@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)} // 👈 Auto-fills 'pravin.wadbude@leezova.com' & makes it editable
+                      value={guestEmail}
+                      onChange={(e) => setGuestEmail(e.target.value)}
                     />
                   </Field>
                 </div>
-
               </div>
             </div>
 
@@ -158,25 +157,15 @@ const ReservationLandingPage = () => {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field label="Check-In" icon={CalendarDays}>
-                    <input
-                      type="date"
-                      className={inputClass}
-                    />
+                    <input type="date" className={inputClass} />
                   </Field>
                   <Field label="Check-Out" icon={CalendarDays}>
-                    <input
-                      type="date"
-                      className={inputClass}
-                    />
+                    <input type="date" className={inputClass} />
                   </Field>
                 </div>
 
                 <Field label="Number of Guests" icon={Users}>
-                  <input
-                    type="number"
-                    className={inputClass}
-                    placeholder="E.g. 2"
-                  />
+                  <input type="number" className={inputClass} placeholder="E.g. 2" />
                 </Field>
               </div>
             </div>
@@ -218,29 +207,15 @@ const ReservationLandingPage = () => {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field label="Room Price" icon={Wallet}>
-                    <input
-                      type="number"
-                      className={inputClass}
-                      placeholder="₹0"
-                      disabled
-                    />
+                    <input type="number" className={inputClass} placeholder="₹0" disabled />
                   </Field>
                   <Field label="Remaining Amount" icon={Wallet}>
-                    <input
-                      type="number"
-                      className={inputClass}
-                      placeholder="₹0"
-                      disabled
-                    />
+                    <input type="number" className={inputClass} placeholder="₹0" disabled />
                   </Field>
                 </div>
 
                 <Field label="Amount Paid" icon={Wallet}>
-                  <input
-                    type="number"
-                    className={inputClass}
-                    placeholder="0"
-                  />
+                  <input type="number" className={inputClass} placeholder="0" />
                 </Field>
 
                 <div className="flex flex-col gap-1.5">
@@ -259,7 +234,7 @@ const ReservationLandingPage = () => {
 
             <div className="mt-4 pb-2">
               <button
-                type="button"
+                type="submit"
                 className="w-full rounded-full bg-[#A67B5B] px-6 py-3 text-sm font-bold tracking-wide text-white transition hover:bg-[#8B664B]"
               >
                 Create Reservation
