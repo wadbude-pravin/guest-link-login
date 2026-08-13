@@ -15,9 +15,9 @@ const Field = ({ label, icon: Icon, children, ...inputProps }) => (
     <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1 transition focus-within:border-[#A67B5B] focus-within:ring-2 focus-within:ring-[#A67B5B]/20 bg-white">
       {Icon && <Icon size={17} className="shrink-0 text-gray-400" />}
       {children ? children : (
-        <input 
-          className="w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed" 
-          {...inputProps} 
+        <input
+          className="w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed"
+          {...inputProps}
         />
       )}
     </div>
@@ -31,7 +31,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000
 const ReservationLandingPage = () => {
   const [isOpen, setIsOpen] = useState(true);
   const [roomTypes, setRoomTypes] = useState([]);
-  
+
   // Explicit asynchronous loader pattern to ensure inputs aren't mounted with empty states before API completion
   const [isFetchingData, setIsFetchingData] = useState(true);
   const [property, setProperty] = useState(null);
@@ -52,7 +52,7 @@ const ReservationLandingPage = () => {
     if (token) {
       setIsFetchingData(true);
       fetch(`${API_BASE_URL}/reservation-links/${token}`, {
-        headers: { 
+        headers: {
           'ngrok-skip-browser-warning': 'true',
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -121,8 +121,8 @@ const ReservationLandingPage = () => {
                 <SectionTitle title="GUEST INFORMATION" />
                 <div className="flex flex-col gap-4">
                   {/* Guest Name */}
-                  <Field 
-                    label="Guest Full Name" 
+                  <Field
+                    label="Guest Full Name"
                     icon={User}
                     type="text"
                     id="guestName"
@@ -134,8 +134,8 @@ const ReservationLandingPage = () => {
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     {/* Guest Phone */}
-                    <Field 
-                      label="Phone Number" 
+                    <Field
+                      label="Phone Number"
                       icon={Phone}
                       type="tel"
                       id="guestPhone"
@@ -146,8 +146,8 @@ const ReservationLandingPage = () => {
                     />
 
                     {/* Guest Email */}
-                    <Field 
-                      label="Email Address" 
+                    <Field
+                      label="Email Address"
                       icon={Mail}
                       type="email"
                       id="guestEmail"
@@ -179,22 +179,22 @@ const ReservationLandingPage = () => {
                   </Field>
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Field 
-                      label="Check-In" 
+                    <Field
+                      label="Check-In"
                       icon={CalendarDays}
                       type="date"
                       name="checkInDate"
                     />
-                    <Field 
-                      label="Check-Out" 
+                    <Field
+                      label="Check-Out"
                       icon={CalendarDays}
                       type="date"
                       name="checkOutDate"
                     />
                   </div>
 
-                  <Field 
-                    label="Number of Guests" 
+                  <Field
+                    label="Number of Guests"
                     icon={Users}
                     type="number"
                     name="numberOfGuests"
@@ -240,30 +240,30 @@ const ReservationLandingPage = () => {
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Field 
-                      label="Room Price" 
+                    <Field
+                      label="Room Price"
                       icon={Wallet}
                       type="number"
                       name="roomPrice"
-                      placeholder="₹0" 
-                      disabled 
+                      placeholder="₹0"
+                      disabled
                     />
-                    <Field 
-                      label="Remaining Amount" 
+                    <Field
+                      label="Remaining Amount"
                       icon={Wallet}
                       type="number"
                       name="remainingAmount"
-                      placeholder="₹0" 
-                      disabled 
+                      placeholder="₹0"
+                      disabled
                     />
                   </div>
 
-                  <Field 
-                    label="Amount Paid" 
+                  <Field
+                    label="Amount Paid"
                     icon={Wallet}
                     type="number"
                     name="amountPaid"
-                    placeholder="0" 
+                    placeholder="0"
                   />
 
                   <div className="flex flex-col gap-1.5">

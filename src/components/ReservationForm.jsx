@@ -62,12 +62,17 @@ const SectionTitle = ({ title }) => (
   </div>
 );
 
-const Field = ({ label, icon: Icon, error, children }) => (
-  <div className="flex flex-col gap-1.5">
+const Field = ({ label, icon: Icon, error, children, ...inputProps }) => (
+  <div className="flex flex-col gap-1.5 w-full">
     <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</label>
-    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1 transition focus-within:border-[#A67B5B] focus-within:ring-2 focus-within:ring-[#A67B5B]/20">
-      <Icon size={17} className="shrink-0 text-gray-400" />
-      {children}
+    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1 transition focus-within:border-[#A67B5B] focus-within:ring-2 focus-within:ring-[#A67B5B]/20 bg-white">
+      {Icon && <Icon size={17} className="shrink-0 text-gray-400" />}
+      {children ? children : (
+        <input 
+          className="w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed" 
+          {...inputProps} 
+        />
+      )}
     </div>
     {error && <p className="text-xs text-red-600">{error}</p>}
   </div>
@@ -83,7 +88,7 @@ const ReadOnlyField = ({ label, icon: Icon, value }) => (
   </div>
 );
 
-const inputClass = 'w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400';
+const inputClass = 'w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400 disabled:opacity-60 disabled:cursor-not-allowed';
 
 const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
   const [form, setForm] = useState(initialState);
@@ -136,11 +141,15 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
 
         // 💥 FIX: Populate pre-filled Guest Information correctly
         if (reservationLink) {
+          const fetchedName = reservationLink.guestName || reservationLink.name || '';
+          const fetchedPhone = reservationLink.guestPhone || reservationLink.phone || reservationLink.phoneNumber || '';
+          const fetchedEmail = reservationLink.guestEmail || reservationLink.email || reservationLink.emailAddress || '';
+
           setForm((prev) => ({
             ...prev,
-            guestName: reservationLink.guestName || prev.guestName || '',
-            phone: reservationLink.guestPhone || prev.phone || '',
-            email: reservationLink.guestEmail || prev.email || '',
+            guestName: fetchedName || prev.guestName || '',
+            phone: fetchedPhone || prev.phone || '',
+            email: fetchedEmail || prev.email || '',
             roomTypeId: reservationLink.roomTypeId || prev.roomTypeId || '',
             checkIn: reservationLink.checkInDate
               ? new Date(reservationLink.checkInDate).toISOString().slice(0, 10)
@@ -154,7 +163,7 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
           setPinned({
             roomType: Boolean(reservationLink.roomTypeId),
             dates: Boolean(reservationLink.checkInDate && reservationLink.checkOutDate),
-            guestName: Boolean(reservationLink.guestName?.trim()),
+            guestName: Boolean(fetchedName?.trim()),
           });
         }
 
@@ -360,34 +369,42 @@ const ReservationForm = ({ onClose, onBookingCreated, token: propToken }) => {
             <div>
               <SectionTitle title="GUEST INFORMATION" />
               <div className="flex flex-col gap-4">
-                <Field label="Guest Full Name" icon={User} error={errors.guestName}>
-                  <input
-                    className={inputClass}
-                    placeholder="E.g. Alexander Hamilton"
-                    value={form.guestName}
-                    onChange={handleChange('guestName')}
-                  />
-                </Field>
+                <Field 
+                  label="Guest Full Name" 
+                  icon={User} 
+                  error={errors.guestName}
+                  type="text"
+                  id="guestName"
+                  name="guestName"
+                  placeholder="E.g. Alexander Hamilton"
+                  value={form.guestName}
+                  onChange={handleChange('guestName')}
+                />
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field label="Phone Number" icon={Phone} error={errors.phone}>
-                    <input
-                      className={inputClass}
-                      placeholder="10-digit number"
-                      inputMode="numeric"
-                      value={form.phone}
-                      onChange={handlePhoneChange}
-                    />
-                  </Field>
-                  <Field label="Email Address" icon={Mail} error={errors.email}>
-                    <input
-                      className={inputClass}
-                      type="email"
-                      placeholder="guest@example.com"
-                      value={form.email}
-                      onChange={handleChange('email')}
-                    />
-                  </Field>
+                  <Field 
+                    label="Phone Number" 
+                    icon={Phone} 
+                    error={errors.phone}
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    placeholder="10-digit number"
+                    inputMode="numeric"
+                    value={form.phone}
+                    onChange={handlePhoneChange}
+                  />
+                  <Field 
+                    label="Email Address" 
+                    icon={Mail} 
+                    error={errors.email}
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="guest@example.com"
+                    value={form.email}
+                    onChange={handleChange('email')}
+                  />
                 </div>
               </div>
             </div>
