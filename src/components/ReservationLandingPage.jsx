@@ -29,6 +29,11 @@ const ReservationLandingPage = () => {
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
   const [property, setProperty] = useState(null);
 
+  // 💡 FIX 1: States for Auto-filling Guest Details
+  const [guestName, setGuestName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+
   useEffect(() => {
     const pathParts = window.location.pathname.split('/');
     const tokenIndex = pathParts.indexOf('reservation-links') + 1;
@@ -44,25 +49,30 @@ const ReservationLandingPage = () => {
       })
         .then((res) => res.json())
         .then((data) => {
-          if (data.roomTypes) {
-            setRoomTypes(data.roomTypes);
-          }
-          if (data.property) {
-            setProperty(data.property);
+          console.log("🔍 API RESPONSE FROM BACKEND:", data); // Check backend response
+
+          // Handle room types & property
+          if (data.roomTypes) setRoomTypes(data.roomTypes);
+          if (data.property) setProperty(data.property);
+
+          // 💡 FIX 2: Pre-fill Guest Details from Backend Response
+          const linkData = data.reservationLink || data.link || data;
+
+          if (linkData) {
+            setGuestName(linkData.guestName || '');
+            setPhone(linkData.guestPhone || '');
+            setEmail(linkData.guestEmail || '');
           }
         })
-        .catch(err => console.error("Failed to fetch room types", err))
+        .catch(err => console.error("Failed to fetch reservation link details", err))
         .finally(() => setIsLoadingRooms(false));
-    } else {
-      // Fallback for testing without token
-      setRoomTypes([]);
     }
   }, []);
 
   if (!isOpen) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-400/50">
-        <button 
+        <button
           onClick={() => setIsOpen(true)}
           className="rounded-lg bg-white px-6 py-2 shadow-md hover:bg-gray-50"
         >
@@ -85,31 +95,44 @@ const ReservationLandingPage = () => {
 
           <form className="flex max-h-[65vh] flex-col gap-6 overflow-y-auto pr-1">
             {/* GUEST INFORMATION */}
+            {/* GUEST INFORMATION SECTION */}
             <div>
               <SectionTitle title="GUEST INFORMATION" />
               <div className="flex flex-col gap-4">
+
+                {/* Full Name */}
                 <Field label="Guest Full Name" icon={User}>
                   <input
                     className={inputClass}
                     placeholder="E.g. Alexander Hamilton"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)} // 👈 Makes it editable
                   />
                 </Field>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {/* Phone Number */}
                   <Field label="Phone Number" icon={Phone}>
                     <input
                       className={inputClass}
                       placeholder="10-digit number"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)} // 👈 Auto-fills '9981578020' & makes it editable
                     />
                   </Field>
+
+                  {/* Email Address */}
                   <Field label="Email Address" icon={Mail}>
                     <input
                       className={inputClass}
                       type="email"
                       placeholder="guest@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)} // 👈 Auto-fills 'pravin.wadbude@leezova.com' & makes it editable
                     />
                   </Field>
                 </div>
+
               </div>
             </div>
 
@@ -233,7 +256,7 @@ const ReservationLandingPage = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="mt-4 pb-2">
               <button
                 type="button"
