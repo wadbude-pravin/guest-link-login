@@ -9,18 +9,6 @@ const SectionTitle = ({ title }) => (
   </div>
 );
 
-const Field = ({ label, icon: Icon, children }) => (
-  <div className="flex flex-col gap-1.5">
-    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</label>
-    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1 transition focus-within:border-[#A67B5B] focus-within:ring-2 focus-within:ring-[#A67B5B]/20">
-      <Icon size={17} className="shrink-0 text-gray-400" />
-      {children}
-    </div>
-  </div>
-);
-
-const inputClass = 'w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400';
-
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const ReservationLandingPage = () => {
@@ -29,10 +17,11 @@ const ReservationLandingPage = () => {
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
   const [property, setProperty] = useState(null);
 
-  // 💡 GUEST FORM STATES (Matched Exactly with API Keys)
+  // States for Guest Information
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
     const pathParts = window.location.pathname.split('/');
@@ -49,22 +38,22 @@ const ReservationLandingPage = () => {
       })
         .then((res) => res.json())
         .then((data) => {
-          console.log("🔍 FETCHED RESERVATION DATA:", data);
+          console.log("🔍 API DATA RECEIVED:", data);
 
           if (data.roomTypes) setRoomTypes(data.roomTypes);
           if (data.property) setProperty(data.property);
 
-          // 💡 Extract reservationLink object
+          // Extract reservationLink data
           const resLink = data.reservationLink || data.link || data;
 
           if (resLink) {
-            // Force state update with exact backend field names
             setGuestName(resLink.guestName || '');
             setGuestPhone(resLink.guestPhone || resLink.phone || '');
             setGuestEmail(resLink.guestEmail || resLink.email || '');
+            setDataLoaded(true); // Triggers re-render with fresh values
           }
         })
-        .catch(err => console.error("Failed to fetch reservation link details", err))
+        .catch((err) => console.error("Failed to fetch link details:", err))
         .finally(() => setIsLoadingRooms(false));
     }
   }, []);
@@ -94,44 +83,64 @@ const ReservationLandingPage = () => {
           </div>
 
           <form className="flex max-h-[65vh] flex-col gap-6 overflow-y-auto pr-1" onSubmit={(e) => e.preventDefault()}>
-            {/* GUEST INFORMATION */}
+
+            {/* GUEST INFORMATION SECTION */}
             <div>
               <SectionTitle title="GUEST INFORMATION" />
               <div className="flex flex-col gap-4">
-                {/* Guest Name */}
-                <Field label="Guest Full Name" icon={User}>
-                  <input
-                    type="text"
-                    className={inputClass}
-                    placeholder="E.g. Alexander Hamilton"
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
-                  />
-                </Field>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {/* Guest Phone */}
-                  <Field label="Phone Number" icon={Phone}>
+                {/* GUEST NAME */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Guest Full Name</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1 focus-within:border-[#A67B5B] focus-within:ring-2 focus-within:ring-[#A67B5B]/20">
+                    <User size={17} className="shrink-0 text-gray-400" />
                     <input
                       type="text"
-                      className={inputClass}
-                      placeholder="10-digit number"
-                      value={guestPhone}
-                      onChange={(e) => setGuestPhone(e.target.value)}
+                      key={`name-${dataLoaded}`}
+                      className="w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400"
+                      placeholder="E.g. Alexander Hamilton"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
                     />
-                  </Field>
-
-                  {/* Guest Email */}
-                  <Field label="Email Address" icon={Mail}>
-                    <input
-                      type="email"
-                      className={inputClass}
-                      placeholder="guest@example.com"
-                      value={guestEmail}
-                      onChange={(e) => setGuestEmail(e.target.value)}
-                    />
-                  </Field>
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+                  {/* PHONE NUMBER */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Phone Number</label>
+                    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1 focus-within:border-[#A67B5B] focus-within:ring-2 focus-within:ring-[#A67B5B]/20">
+                      <Phone size={17} className="shrink-0 text-gray-400" />
+                      <input
+                        type="text"
+                        key={`phone-${dataLoaded}`}
+                        className="w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400"
+                        placeholder="10-digit number"
+                        value={guestPhone}
+                        onChange={(e) => setGuestPhone(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* EMAIL ADDRESS */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Email Address</label>
+                    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1 focus-within:border-[#A67B5B] focus-within:ring-2 focus-within:ring-[#A67B5B]/20">
+                      <Mail size={17} className="shrink-0 text-gray-400" />
+                      <input
+                        type="email"
+                        key={`email-${dataLoaded}`}
+                        className="w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400"
+                        placeholder="guest@example.com"
+                        value={guestEmail}
+                        onChange={(e) => setGuestEmail(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                </div>
+
               </div>
             </div>
 
@@ -139,34 +148,50 @@ const ReservationLandingPage = () => {
             <div>
               <SectionTitle title="BOOKING DETAILS" />
               <div className="flex flex-col gap-4">
-                <Field label="Room Type" icon={BedDouble}>
-                  <select className={inputClass} defaultValue="">
-                    <option value="" disabled>
-                      {isLoadingRooms ? 'Loading room types...' : 'Select a room type'}
-                    </option>
-                    {!isLoadingRooms && roomTypes.length === 0 && (
-                      <option value="" disabled>No room types available</option>
-                    )}
-                    {roomTypes.map((room) => (
-                      <option key={room.id} value={room.id}>
-                        {room.name} {room.price ? `— ₹${room.price}` : room.basePrice ? `— ₹${room.basePrice}` : ''}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Room Type</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1 focus-within:border-[#A67B5B]">
+                    <BedDouble size={17} className="shrink-0 text-gray-400" />
+                    <select className="w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none" defaultValue="">
+                      <option value="" disabled>
+                        {isLoadingRooms ? 'Loading room types...' : 'Select a room type'}
                       </option>
-                    ))}
-                  </select>
-                </Field>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field label="Check-In" icon={CalendarDays}>
-                    <input type="date" className={inputClass} />
-                  </Field>
-                  <Field label="Check-Out" icon={CalendarDays}>
-                    <input type="date" className={inputClass} />
-                  </Field>
+                      {!isLoadingRooms && roomTypes.length === 0 && (
+                        <option value="" disabled>No room types available</option>
+                      )}
+                      {roomTypes.map((room) => (
+                        <option key={room.id} value={room.id}>
+                          {room.name} {room.price ? `— ₹${room.price}` : room.basePrice ? `— ₹${room.basePrice}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <Field label="Number of Guests" icon={Users}>
-                  <input type="number" className={inputClass} placeholder="E.g. 2" />
-                </Field>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Check-In</label>
+                    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1">
+                      <CalendarDays size={17} className="shrink-0 text-gray-400" />
+                      <input type="date" className="w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Check-Out</label>
+                    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1">
+                      <CalendarDays size={17} className="shrink-0 text-gray-400" />
+                      <input type="date" className="w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Number of Guests</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1">
+                    <Users size={17} className="shrink-0 text-gray-400" />
+                    <input type="number" className="w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none" placeholder="E.g. 2" />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -175,9 +200,7 @@ const ReservationLandingPage = () => {
               <SectionTitle title="GUEST ID VERIFICATION" />
               <div className="flex flex-col gap-4">
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Upload ID Proof
-                  </label>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Upload ID Proof</label>
                   <div className="mt-1.5">
                     <button
                       type="button"
@@ -206,22 +229,32 @@ const ReservationLandingPage = () => {
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field label="Room Price" icon={Wallet}>
-                    <input type="number" className={inputClass} placeholder="₹0" disabled />
-                  </Field>
-                  <Field label="Remaining Amount" icon={Wallet}>
-                    <input type="number" className={inputClass} placeholder="₹0" disabled />
-                  </Field>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Room Price</label>
+                    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1">
+                      <Wallet size={17} className="shrink-0 text-gray-400" />
+                      <input type="number" className="w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none" placeholder="₹0" disabled />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Remaining Amount</label>
+                    <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1">
+                      <Wallet size={17} className="shrink-0 text-gray-400" />
+                      <input type="number" className="w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none" placeholder="₹0" disabled />
+                    </div>
+                  </div>
                 </div>
 
-                <Field label="Amount Paid" icon={Wallet}>
-                  <input type="number" className={inputClass} placeholder="0" />
-                </Field>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Amount Paid</label>
+                  <div className="flex items-center gap-2 rounded-xl border border-gray-200 px-3.5 py-1">
+                    <Wallet size={17} className="shrink-0 text-gray-400" />
+                    <input type="number" className="w-full bg-transparent py-2.5 text-sm text-gray-800 outline-none" placeholder="0" />
+                  </div>
+                </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Payment Method
-                  </label>
+                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Payment Method</label>
                   <select className="rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm text-gray-800 outline-none transition focus:border-[#A67B5B] focus:ring-2 focus:ring-[#A67B5B]/20">
                     <option value="cash">Cash</option>
                     <option value="upi">UPI</option>
@@ -240,6 +273,7 @@ const ReservationLandingPage = () => {
                 Create Reservation
               </button>
             </div>
+
           </form>
         </div>
       </ModalShell>
