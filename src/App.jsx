@@ -1,17 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import ReservationLandingPage from './components/ReservationLandingPage.jsx';
 import ReservationForm from './components/ReservationForm.jsx';
 
 function App() {
-  const [token, setToken] = useState(null);
-
-  useEffect(() => {
-    // Match pattern: /reservation-links/:token/reservation OR /reservation-links/:token
+  const token = useMemo(() => {
     const pathParts = window.location.pathname.split('/');
     const tokenIndex = pathParts.indexOf('reservation-links') + 1;
     if (tokenIndex > 0 && tokenIndex < pathParts.length) {
-      setToken(pathParts[tokenIndex]);
+      return pathParts[tokenIndex];
     }
+    return null;
   }, []);
 
   if (window.location.pathname.includes('/reservation-links/')) {
